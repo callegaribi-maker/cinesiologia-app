@@ -109,7 +109,7 @@ def fmt(v, d=2):
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def minmax(t, y, n=3000):
+def minmax(t, y, n=1200):
     """Reduz pontos só para desenhar, preservando picos (envelope mín/máx)."""
     if len(t) <= 2 * n:
         return t, y
@@ -217,12 +217,13 @@ def side(eyebrow, title, intro, howto):
 
 
 def results_block(df, fname, note=None):
-    st.markdown("#### Resultados")
-    st.dataframe(df, hide_index=True, width="stretch")
+    st.markdown("### Resultados")
+    st.table(df.set_index(df.columns[0]))
+    c1, c2 = st.columns([3, 1], vertical_alignment="center")
     if note:
-        st.caption(note)
-    st.download_button("Baixar tabela (.csv)", df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
-                       file_name=fname, mime="text/csv", key="dl_" + fname)
+        c1.caption(note)
+    c2.download_button("Baixar tabela (.csv)", df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+                       file_name=fname, mime="text/csv", key="dl_" + fname, width="stretch")
 
 
 def base_layout(fig, height):
@@ -244,6 +245,7 @@ def emg_tab(tab_name):
     s_col, m_col = st.columns([1, 2.6], gap="large")
     conds = []
     with m_col:
+        res_box = st.container(border=True)
         for i, (name, fname, cols) in enumerate(cfg["conds"]):
             box = st.container(border=True)
             with box:
@@ -283,7 +285,7 @@ def emg_tab(tab_name):
                                     subplot_titles=[f"{m} · RMS {fmt(c['rms'][k], 1)}" for k, m in enumerate(cfg["muscles"])])
                 for k, y in enumerate(c["ys"]):
                     tt, yy = minmax(c["t"], y)
-                    fig.add_trace(go.Scattergl(x=tt, y=yy, mode="lines", line=dict(color=C[k], width=1), name=cfg["muscles"][k]), k + 1, 1)
+                    fig.add_trace(go.Scatter(x=tt, y=yy, mode="lines", line=dict(color=C[k], width=1), name=cfg["muscles"][k]), k + 1, 1)
                     if not c["full"]:
                         fig.add_vrect(x0=c["win"][0], x1=c["win"][1], fillcolor=SEL, line_width=0, row=k + 1, col=1)
                 fig.update_yaxes(range=[-ymax, ymax])
@@ -302,7 +304,8 @@ def emg_tab(tab_name):
             for k, m in enumerate(cfg["muscles"]):
                 row[m] = fmt(c["rms"][k], 1) if c else "—"
             rows.append(row)
-        results_block(pd.DataFrame(rows), f"rms_{kid.lower()}.csv",
+        with res_box:
+          results_block(pd.DataFrame(rows), f"rms_{kid.lower()}.csv",
                       "RMS na unidade do arquivo de EMG, sem filtragem, como no script MATLAB.")
 
 
@@ -316,6 +319,7 @@ def imu_tab():
     s_col, m_col = st.columns([1, 2.6], gap="large")
     res = []
     with m_col:
+        res_box = st.container(border=True)
         for i, (name, unit, fname) in enumerate(panels):
             with st.container(border=True):
                 h1, h2 = st.columns([3, 2])
@@ -345,7 +349,8 @@ def imu_tab():
             xmax = max(q["t"][-1] for q in same)
             fig = go.Figure()
             for (an, _, col), x, r in zip(axes, p["f"], p["rms"]):
-                fig.add_trace(go.Scattergl(x=p["t"], y=x, mode="lines", line=dict(color=col, width=1.6),
+                tx, yx = minmax(p["t"], x)
+                fig.add_trace(go.Scatter(x=tx, y=yx, mode="lines", line=dict(color=col, width=1.6),
                                            name=f"{an} · RMS {fmt(r, 3)} {p['unit']}"))
             if not p["full"]:
                 fig.add_vrect(x0=p["win"][0], x1=p["win"][1], fillcolor=SEL, line_width=0)
@@ -362,7 +367,8 @@ def imu_tab():
               "Registros da mesma grandeza usam a mesma escala, para comparar os movimentos."])
         df = pd.DataFrame([{"Registro": n, "Unidade": u, **{a[0]: (fmt(p["rms"][k], 3) if p else "—") for k, a in enumerate(axes)}}
                            for (n, u, _), p in zip(panels, res)])
-        results_block(df, "rms_planos_eixos.csv", "O maior RMS aponta o eixo com mais movimento em cada registro.")
+        with res_box:
+          results_block(df, "rms_planos_eixos.csv", "O maior RMS aponta o eixo com mais movimento em cada registro.")
 
 
 # --------------------------------------------------------------------------- Marcha
@@ -379,10 +385,10 @@ def gait_tab():
         thr = st.number_input("Limiar de contato (N)", 0.0, 500.0, 20.0, 1.0, key="g_thr")
         mass = st.number_input("Massa corporal (kg) — opcional", 0.0, 300.0, 0.0, 0.5, key="g_mass")
         full = st.toggle("Ver registro inteiro", key="g_full")
-        res_slot = st.container()
     conds = [("Caminhada", "marcha_caminhada.txt", 0.25), ("Corrida", "marcha_corrida.txt", 0.10)]
     out = []
     with m_col:
+        res_box = st.container(border=True)
         for i, (name, fname, dist0) in enumerate(conds):
             with st.container(border=True):
                 h1, h2 = st.columns([3, 2])
@@ -414,14 +420,14 @@ def gait_tab():
             W = max((c["contact"][1] - c["contact"][0]) if c["contact"] else 0 for c in ok) + 0.6
             for c in ok:
                 xr = [0, max(q["t"][-1] for q in ok)] if (full or not c["contact"]) else [c["contact"][0] - 0.3, c["contact"][0] - 0.3 + W]
-                fig = go.Figure(go.Scattergl(x=c["t"], y=c["fz"], mode="lines", line=dict(color=C[0], width=2), name="Fz"))
+                fig = go.Figure(go.Scatter(x=c["t"], y=c["fz"], mode="lines", line=dict(color=C[0], width=2), name="Fz"))
                 fig.add_trace(go.Scatter(x=c["t"][c["pk"]], y=c["fz"][c["pk"]], mode="markers+text", marker=dict(color=C[1], size=9),
                                          text=[f"{fmt(v, 0)} N" for v in c["fz"][c["pk"]]], textposition="top center", name="picos"))
                 fig.add_vrect(x0=c["mark"][0], x1=c["mark"][1], fillcolor=SEL, line_width=0)
                 fig.update_yaxes(range=[ymin, ymax], title_text="Fz (N)")
                 fig.update_xaxes(range=xr, title_text="tempo (s)")
                 c["slot"].plotly_chart(base_layout(fig, 320), width="stretch", key=f"g_fig_{c['name']}")
-    with res_slot:
+    with res_box:
         bw = mass * 9.81 if mass > 0 else None
         rows = []
         for (name, _, _), c in zip(conds, out):
@@ -443,6 +449,7 @@ def balance_tab():
     s_col, m_col = st.columns([1, 2.6], gap="large")
     out = []
     with m_col:
+        res_box = st.container(border=True)
         with st.container(border=True):
             st.markdown("### Arquivos")
             fc = st.columns(3)
@@ -493,7 +500,7 @@ def balance_tab():
                     st.caption("Eixo horizontal: ML (m/s²) · eixo vertical: AP (m/s²) · em vermelho, elipse de 95%.")
                     fig = make_subplots(rows=1, cols=len(ok), subplot_titles=[f"{c['sig']} · {c['long']}" for c in ok], horizontal_spacing=0.06)
                     for k, c in enumerate(ok, 1):
-                        fig.add_trace(go.Scattergl(x=c["ml"], y=c["ap"], mode="lines", line=dict(color="#5A6672", width=1)), 1, k)
+                        fig.add_trace(go.Scatter(x=c["ml"], y=c["ap"], mode="lines", line=dict(color="#5A6672", width=1)), 1, k)
                         fig.add_trace(go.Scatter(x=c["ell"][0], y=c["ell"][1], mode="lines", line=dict(color=C[1], width=2.5)), 1, k)
                         fig.update_xaxes(range=[-q, q], row=1, col=k, title_text="ML", constrain="domain")
                         fig.update_yaxes(range=[-q, q], row=1, col=k, scaleanchor=f"x{k if k > 1 else ''}", scaleratio=1, constrain="domain")
@@ -503,8 +510,8 @@ def balance_tab():
                     fig = make_subplots(rows=len(ok), cols=1, shared_xaxes=True, vertical_spacing=0.1,
                                         subplot_titles=[f"{c['sig']} · {c['long']}" for c in ok])
                     for k, c in enumerate(ok, 1):
-                        fig.add_trace(go.Scattergl(x=c["t"], y=c["ap"], mode="lines", line=dict(color=C[0], width=1.2), name="AP", showlegend=k == 1), k, 1)
-                        fig.add_trace(go.Scattergl(x=c["t"], y=c["ml"], mode="lines", line=dict(color=C[1], width=1.2), name="ML", showlegend=k == 1), k, 1)
+                        fig.add_trace(go.Scatter(x=c["t"], y=c["ap"], mode="lines", line=dict(color=C[0], width=1.2), name="AP", showlegend=k == 1), k, 1)
+                        fig.add_trace(go.Scatter(x=c["t"], y=c["ml"], mode="lines", line=dict(color=C[1], width=1.2), name="ML", showlegend=k == 1), k, 1)
                         fig.update_yaxes(range=[-q, q], row=k, col=1, title_text="m/s²")
                     fig.update_xaxes(range=[0, tmax])
                     fig.update_xaxes(title_text="tempo (s)", row=len(ok), col=1)
@@ -518,7 +525,8 @@ def balance_tab():
               "Alterne entre o estatocinesigrama (ML × AP, com elipse de 95%) e o estabilograma (sinal no tempo). As três condições usam sempre a mesma escala."])
         names = [("Deslocamento total", "tot", 1), ("Área da elipse 95%", "area", 3), ("RMS ML", "rx", 3), ("RMS AP", "ry", 3)]
         df = pd.DataFrame([{"Variável": n, **{sig: (fmt(c["r"][k], d) if c else "—") for (sig, _, _), c in zip(conds, out)}} for n, k, d in names])
-        results_block(df, "equilibrio.csv",
+        with res_box:
+          results_block(df, "equilibrio.csv",
                       "Sinais em m/s². Deslocamento total = soma das distâncias ao centro (Σ√(ML²+AP²)), como no script original. Área em (m/s²)².")
 
 
