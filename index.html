@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Experimentos de Cinesiologia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="vendor/uPlot.iife.min.js"></script>
+<style>
+/* Layout: bancada de laboratório — cabeçalho institucional, barra de abas fixa, cada aba = painel lateral (roteiro + resultados) + traçados de sinal. */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --ink:#15202B; --muted:#5A6672; --line:#DCE1E7;
+  --accent:#C93A25; --accent-soft:#F9E3DF; --sel:rgba(201,58,37,.13);
+  --t1:#1F5FA8; --t2:#C93A25; --t3:#17806A;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F151B; --surface:#18212A; --ink:#E6ECF1; --muted:#97A3AF; --line:#2A3541;
+  --accent:#F06A52; --accent-soft:#3A221F; --sel:rgba(240,106,82,.18);
+  --t1:#74A9EE; --t2:#F07C66; --t3:#4CC6A0; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0F151B; --surface:#18212A; --ink:#E6ECF1; --muted:#97A3AF; --line:#2A3541;
+  --accent:#F06A52; --accent-soft:#3A221F; --sel:rgba(240,106,82,.18);
+  --t1:#74A9EE; --t2:#F07C66; --t3:#4CC6A0; color-scheme:dark }
+
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:16px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:20px;padding-block:18px;flex-wrap:wrap}
+.logos{display:flex;gap:10px;align-items:center}
+.logos img{height:46px;width:auto;background:#fff;border-radius:6px;padding:4px 6px}
+.brand{min-width:0;flex:1 1 320px}
+@media (max-width:560px){.logos img{height:34px}}
+.brand h1{font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:clamp(1.5rem,3.2vw,2.1rem);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:.92rem}
+
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin}
+nav.tabs a{flex:none;font-family:var(--f-display);font-stretch:85%;font-weight:600;font-size:.98rem;color:var(--muted);text-decoration:none;padding:12px 14px 10px;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs a:hover{color:var(--ink)}
+nav.tabs a[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+
+main{padding-block:24px 64px}
+.exp{display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:900px){.exp{grid-template-columns:minmax(0,1fr)}}
+aside.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 64px);display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:900px){aside.side{position:static}}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0}
+aside h2{font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:1.9rem;line-height:1.05;margin:4px 0 0;text-wrap:balance}
+aside p.intro{margin:0;color:var(--ink)}
+.howto{margin:0;padding-left:1.2em;color:var(--muted);font-size:.93rem;display:grid;gap:4px}
+.results{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px}
+.results h3{margin:0;font-family:var(--f-display);font-stretch:85%;font-size:1.05rem;font-weight:700}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line)}
+td.num{white-space:nowrap}
+thead th{vertical-align:bottom}
+th:first-child,td:first-child{text-align:left}
+thead th{font-family:var(--f-mono);font-weight:500;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.note{font-size:.8rem;color:var(--muted);margin:0}
+
+.stack{display:flex;flex-direction:column;gap:22px;min-width:0}
+.cond{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px 12px;min-width:0}
+.cond-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:8px}
+.cond-head h3{margin:0;font-family:var(--f-display);font-stretch:85%;font-weight:700;font-size:1.25rem}
+.file{font-family:var(--f-mono);font-size:.76rem;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:2px 8px;border-radius:99px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file.mine{color:var(--accent);border-color:var(--accent)}
+.spacer{flex:1}
+.btn,button{font:600 .85rem var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover,button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+label.btn input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.85rem;color:var(--muted);margin-bottom:6px}
+.controls label{display:inline-flex;align-items:center;gap:6px}
+.controls input[type=number]{width:84px;font:500 .85rem var(--f-mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.controls select{font:.82rem var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 4px}
+.chan{margin-top:6px}
+.chan-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.chan-name{font-weight:600;font-size:.92rem;display:flex;align-items:center;gap:7px}
+.sw{width:12px;height:3px;border-radius:2px;display:inline-block}
+.rms{font-family:var(--f-mono);font-size:.85rem;font-variant-numeric:tabular-nums}
+.rms b{font-weight:500;color:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.plot{width:100%;min-width:0}
+.winline{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.err{color:var(--accent);font-size:.88rem}
+.loading{color:var(--muted);font-size:.9rem;padding:20px 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
+.skg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.skg figure{margin:0;display:flex;flex-direction:column;gap:4px;min-width:0}
+.skg figcaption{font-family:var(--f-display);font-stretch:85%;font-weight:700}
+.skg canvas{width:100%;aspect-ratio:1;max-width:100%;background:var(--bg);border-radius:8px}
+.files3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.files3 .cell{display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0}
+.files3 .cell strong{font-family:var(--f-display);font-stretch:85%}
+.missing{color:var(--muted);font-size:.85rem}
+
+/* uPlot (CSS inlined) */
+.uplot,.uplot *,.uplot *::before,.uplot *::after{box-sizing:border-box}
+.uplot{font-family:var(--f-mono);line-height:1.5;width:min-content}
+.u-wrap{position:relative;user-select:none}
+.u-over,.u-under{position:absolute}.u-under{overflow:hidden}
+.uplot canvas{display:block;position:relative;width:100%;height:100%}
+.u-axis{position:absolute}.u-legend{display:none}
+.u-select{background:var(--sel);position:absolute;pointer-events:none;border-left:1.5px dashed var(--accent);border-right:1.5px dashed var(--accent)}
+.u-cursor-x,.u-cursor-y{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.u-hz .u-cursor-x{height:100%;border-right:1px dashed var(--muted)}
+.u-hz .u-cursor-y{width:100%;border-bottom:0}
+.u-cursor-pt{position:absolute;top:0;left:0;border-radius:50%;border:0 solid;pointer-events:none;will-change:transform;background-clip:padding-box!important}
+.u-axis.u-off,.u-select.u-off,.u-cursor-x.u-off,.u-cursor-y.u-off,.u-cursor-pt.u-off{display:none}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="logos"><img src="img/lemoh.png" alt="LEMOH"><img src="img/ufpa.png" alt="UFPA"></div>
+  <div class="brand"><h1>Experimentos de Cinesiologia</h1>
+  <p>Laboratório de Estudos da Motricidade Humana · Universidade Federal do Pará</p></div>
+</div></header>
+<nav class="tabs" aria-label="Experimentos"><div class="wrap" id="tabs" role="tablist"></div></nav>
+<main class="wrap" id="main"></main>
+
+<script>
+"use strict";
+/* ---------------- Configuração dos experimentos ---------------- */
+const EXPS = [
+ {id:"planos-e-eixos", tab:"Planos e eixos", kind:"imu",
+  title:"Planos e eixos de movimento",
+  intro:"Sensores inerciais do celular (acelerômetro e giroscópio) registram o movimento do ombro. Compare em qual eixo o sinal é maior em cada movimento para identificar o plano e o eixo de rotação.",
+  howto:["Os dados de exemplo já estão carregados. Para usar os seus, clique em <em>Carregar arquivo</em> em cada registro (.csv do app: tempo em ms; eixos X, Y, Z).","Os sinais passam por remoção de tendência e filtro passa-banda de 0,1–10 Hz, como no script original.","O RMS é calculado no sinal inteiro. Arraste sobre o gráfico para calcular só num trecho.","Registros da mesma grandeza (aceleração ou velocidade angular) usam a mesma escala, para comparar os movimentos."],
+  axes:[{name:"Vertical (Y)",col:2,c:"--t2"},{name:"Anteroposterior (X)",col:1,c:"--t1"},{name:"Mediolateral (Z)",col:3,c:"--t3"}],
+  panels:[
+   {name:"Flexão de ombro · aceleração linear", unit:"m/s²", file:"data/eixos_acc_flexao.csv"},
+   {name:"Flexão de ombro · velocidade angular", unit:"rad/s", file:"data/eixos_giro_flexao.csv"},
+   {name:"Abdução de ombro · aceleração linear", unit:"m/s²", file:"data/eixos_acc_ext.csv"},
+   {name:"Abdução de ombro · velocidade angular", unit:"rad/s", file:"data/eixos_giro_ext.csv"}]},
+ {id:"ombro", tab:"Ombro", kind:"emg", title:"RMS do ombro",
+  intro:"Eletromiografia do deltoide anterior e do deltoide posterior durante a flexão e a extensão do ombro.",
+  muscles:["Deltoide anterior","Deltoide posterior"],
+  conds:[{name:"Flexão",file:"data/ombro_flexao.txt",cols:[1,2]},{name:"Extensão",file:"data/ombro_extensao.txt",cols:[2,1]}]},
+ {id:"cotovelo", tab:"Cotovelo", kind:"emg", title:"RMS do cotovelo", yr:800,
+  intro:"Eletromiografia do bíceps braquial com o antebraço em pronação, em supinação e no movimento combinado.",
+  muscles:["Bíceps braquial"],
+  conds:[{name:"Prono",file:"data/cotovelo_prono.txt",cols:[1]},{name:"Supino",file:"data/cotovelo_supino.txt",cols:[1]},{name:"Combinado",file:"data/cotovelo_combinado.txt",cols:[1]}]},
+ {id:"punho-e-mao", tab:"Punho e mão", kind:"emg", title:"RMS do punho e da mão",
+  intro:"Eletromiografia do flexor longo dos dedos e do extensor comum dos dedos durante a flexão e a extensão do punho.",
+  muscles:["Flexor longo dos dedos","Extensor comum dos dedos"],
+  conds:[{name:"Flexão",file:"data/punho_flexao.txt",cols:[2,1]},{name:"Extensão",file:"data/punho_extensao.txt",cols:[2,1]}]},
+ {id:"joelho", tab:"Joelho", kind:"emg", title:"RMS do joelho",
+  intro:"Eletromiografia do reto femoral (RF) e do semitendinoso (ST) durante a flexão e a extensão do joelho.",
+  muscles:["Reto femoral (RF)","Semitendinoso (ST)"],
+  conds:[{name:"Flexão",file:"data/joelho_flexao.txt",cols:[1,2]},{name:"Extensão",file:"data/joelho_extensao.txt",cols:[1,2]}]},
+ {id:"tornozelo", tab:"Tornozelo", kind:"emg", title:"RMS do tornozelo", yr:300,
+  intro:"Eletromiografia do tibial anterior (TA) e do gastrocnêmio (GAS) no apoio unipodal no chão e sobre a prancha de equilíbrio.",
+  muscles:["Tibial anterior (TA)","Gastrocnêmio (GAS)"],
+  conds:[{name:"Unipodal no chão",file:"data/tornozelo_chao.txt",cols:[1,2]},{name:"Unipodal na prancha",file:"data/tornozelo_prancha.txt",cols:[2,1]}]},
+ {id:"cervical", tab:"Cervical", kind:"emg", title:"RMS da cervical", yr:400,
+  intro:"Eletromiografia do esternocleidomastoideo esquerdo e direito (ECM E e ECM D) na flexão, na inclinação para a direita e na rotação para a esquerda.",
+  muscles:["ECM esquerdo","ECM direito"],
+  conds:[{name:"Flexão cervical",file:"data/cervical_flexao.txt",cols:[1,2]},{name:"Inclinação lado direito",file:"data/cervical_inclinacao_dir.txt",cols:[1,2]},{name:"Rotação lado esquerdo",file:"data/cervical_rotacao_esq.txt",cols:[1,2]}]},
+ {id:"marcha", tab:"Marcha", kind:"gait", title:"Marcha",
+  intro:"Força de reação do solo vertical (Fz) registrada na plataforma de força durante um apoio na caminhada e na corrida.",
+  howto:["Os dados de exemplo já estão carregados. Para usar os seus, clique em <em>Carregar arquivo</em> (.txt com tempo em s e Fz em N).","O tempo de apoio é calculado automaticamente enquanto Fz fica acima do limiar.","Arraste sobre o gráfico para medir manualmente a duração de qualquer trecho.","Caminhada e corrida usam a mesma escala de força e janelas de tempo de mesma duração."],
+  conds:[{name:"Caminhada",file:"data/marcha_caminhada.txt",dist:0.25},{name:"Corrida",file:"data/marcha_corrida.txt",dist:0.1}]},
+ {id:"equilibrio", tab:"Equilíbrio", kind:"balance", title:"Equilíbrio",
+  intro:"Oscilação postural em pé nas condições olhos abertos (OA), olhos fechados (OF) e apoio unipodal (UNI).",
+  howto:["Os dados de exemplo já estão carregados. Para usar os seus, carregue um arquivo por condição: .mat exportado (dataToExport com ML, AP, Tempo) ou .csv/.txt com colunas tempo, ML, AP.","Os sinais passam por remoção de tendência e da média e por filtro passa-banda de 0,1–4 Hz.","Alterne entre o estatocinesigrama (ML × AP, com elipse de 95%) e o estabilograma (sinal no tempo). As três condições usam sempre a mesma escala."],
+  conds:[{name:"OA",long:"Olhos abertos",file:"data/equilibrio_OA.txt"},{name:"OF",long:"Olhos fechados",file:"data/equilibrio_OF.txt"},{name:"UNI",long:"Unipodal",file:"data/equilibrio_UNI.txt"}]}
+];
+const EMG_HOWTO = ["Os dados de exemplo já estão carregados. Para usar os seus, clique em <em>Carregar arquivo</em> na condição (.txt: tempo, canal 1, canal 2…).","Arraste sobre o sinal para marcar a janela de análise; ela vale para todos os músculos da condição. Você também pode digitar início e fim em segundos.","Sem janela marcada, o RMS é do sinal inteiro.","Todos os gráficos da aba usam a mesma escala de amplitude e de tempo, para comparar condições e músculos."];
+
+/* ---------------- Processamento de sinais ---------------- */
+const FILT = {
+ bp10:{b:[0.004661975563446371,0,-0.018647902253785483,0,0.027971853380678223,0,-0.018647902253785483,0,0.004661975563446371],
+       a:[1,-6.372598233583273,17.819030024854598,-28.615262043624504,28.914676729621814,-18.844444194707542,7.737015719926907,-1.8290880198773656,0.19067001751023113],
+       zi:[-0.00466198273968821,-0.004661937008382137,0.013985837371734533,0.013986042721775274,-0.013986018157615887,-0.013985882925327004,0.004661963805762551,0.0046619769317405284]},
+ bp4:{b:[0.00016677269033465517,0,-0.0006670907613386207,0,0.001000636142007931,0,-0.0006670907613386207,0,0.00016677269033465517],
+      a:[1,-7.3545876273632995,23.687375613187047,-43.64095783862436,50.30800039631106,-37.15931887201101,17.17523899762787,-4.541874057040575,0.5261233879178738],
+      zi:[-0.00016676679876813575,-0.00016681012881036557,0.0005004201882773517,0.0005001630746712724,-0.0005001766744058626,-0.000500395601004815,0.0001667963493968479,0.00016676959064371782]}
+};
+function lfilter(b,a,x,z0){
+  const n=b.length, z=z0.slice(), y=new Float64Array(x.length);
+  for(let i=0;i<x.length;i++){
+    const xi=x[i], yi=b[0]*xi+z[0];
+    for(let k=1;k<n-1;k++) z[k-1]=b[k]*xi+z[k]-a[k]*yi;
+    z[n-2]=b[n-1]*xi-a[n-1]*yi;
+    y[i]=yi;
+  }
+  return y;
+}
+function filtfilt(f,x){ // equivalente ao filtfilt do MATLAB (reflexão ímpar, nfact = 3*(n-1))
+  const nf=3*(f.b.length-1), N=x.length;
+  if(N<=nf) throw new Error("Sinal curto demais para o filtro.");
+  const e=new Float64Array(N+2*nf);
+  for(let i=0;i<nf;i++) e[i]=2*x[0]-x[nf-i];
+  e.set(x,nf);
+  for(let i=0;i<nf;i++) e[nf+N+i]=2*x[N-1]-x[N-2-i];
+  let y=lfilter(f.b,f.a,e,f.zi.map(v=>v*e[0])); y.reverse();
+  y=lfilter(f.b,f.a,y,f.zi.map(v=>v*y[0])); y.reverse();
+  return y.slice(nf,nf+N);
+}
+function detrend(x){
+  const N=x.length; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<N;i++){sx+=i;sy+=x[i];sxx+=i*i;sxy+=i*x[i];}
+  const m=(N*sxy-sx*sy)/(N*sxx-sx*sx), c=(sy-m*sx)/N;
+  return Float64Array.from(x,(v,i)=>v-(m*i+c));
+}
+function niceCeil(v){ if(!(v>0)) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); for(const m of [1,1.2,1.5,2,2.5,3,4,5,6,8,10]) if(m*p>=v*1.02) return m*p; return 10*p; }
+function absMax(arrs){ let m=0; for(const y of arrs) for(const v of y) if(Number.isFinite(v)&&Math.abs(v)>m) m=Math.abs(v); return m; }
+const mean=x=>{let s=0;for(const v of x)s+=v;return s/x.length};
+function rms(x,i0=0,i1=x.length){let s=0,n=0;for(let i=i0;i<i1;i++){const v=x[i];if(Number.isFinite(v)){s+=v*v;n++;}}return n?Math.sqrt(s/n):NaN}
+function lowerIdx(t,v){let lo=0,hi=t.length;while(lo<hi){const m=(lo+hi)>>1;if(t[m]<v)lo=m+1;else hi=m;}return lo}
+function winIdx(t,win){ if(!win) return [0,t.length]; const a=lowerIdx(t,win[0]), b=lowerIdx(t,win[1]+1e-12); return [a,Math.max(a+1,b)]; }
+function findPeaks(t,y,minH,minDist){
+  const c=[];
+  for(let i=1;i<y.length-1;i++){
+    if(y[i]>y[i-1] && y[i]>=y[i+1] && y[i]>=minH){ c.push(i); }
+  }
+  c.sort((p,q)=>y[q]-y[p]);
+  const keep=[];
+  for(const i of c){ if(keep.every(k=>Math.abs(t[k]-t[i])>=minDist)) keep.push(i); }
+  return keep.sort((p,q)=>p-q);
+}
+function ellipse95(x,y){
+  const mx=mean(x),my=mean(y);let sxx=0,syy=0,sxy=0;const n=x.length;
+  for(let i=0;i<n;i++){const dx=x[i]-mx,dy=y[i]-my;sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;}
+  sxx/=n-1;syy/=n-1;sxy/=n-1;
+  const tr=sxx+syy, det=sxx*syy-sxy*sxy, d=Math.sqrt(Math.max(0,tr*tr/4-det));
+  const l1=tr/2+d, l2=Math.max(0,tr/2-d);
+  const ang=Math.abs(sxy)<1e-15?(sxx>=syy?0:Math.PI/2):Math.atan2(l1-sxx,sxy);
+  const A=2.4478*Math.sqrt(l1), B=2.4478*Math.sqrt(l2);
+  return {cx:mx,cy:my,A,B,ang,area:Math.PI*A*B};
+}
+
+/* ---------------- Leitura de arquivos ---------------- */
+function parseTable(text){
+  const rows=[]; let header=null;
+  for(const raw of text.split(/\r?\n/)){
+    const line=raw.trim(); if(!line) continue;
+    let parts;
+    if(line.includes(";")) parts=line.split(";").map(s=>s.trim().replace(",","."));
+    else if(line.includes("\t")) parts=line.split("\t");
+    else if(line.includes(",")) parts=line.split(",");
+    else parts=line.split(/\s+/);
+    parts=parts.map(s=>s.trim()).filter(s=>s!=="");
+    const nums=parts.map(s=>/^nan$/i.test(s)?NaN:Number(s));
+    if(!Number.isFinite(nums[0])){ if(!rows.length) header=parts; continue; }
+    rows.push(nums);
+  }
+  if(!rows.length) throw new Error("Não encontrei linhas numéricas no arquivo.");
+  const nc=Math.max(...rows.slice(0,50).map(r=>r.length));
+  const cols=Array.from({length:nc},(_,j)=>Float64Array.from(rows,r=>r[j]===undefined?NaN:r[j]));
+  return {header,cols};
+}
+async function inflate(u8){
+  const ds=new DecompressionStream("deflate");
+  const buf=await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+async function parseMat(buffer){ // leitor mínimo de MAT-file v5 (double, struct, cell, compactado)
+  const u8=new Uint8Array(buffer);
+  if(u8.length<128 || String.fromCharCode(u8[126],u8[127])!=="IM") throw new Error("Arquivo .mat não reconhecido (use MAT v5/v7, sem -v7.3).");
+  const vars={};
+  async function elements(bytes){
+    const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength); const out=[]; let p=0;
+    while(p+8<=bytes.length){
+      let type=dv.getUint32(p,true), size, data;
+      if(type>>>16){ size=type>>>16; type&=0xffff; data=bytes.subarray(p+4,p+4+size); p+=8; }
+      else { size=dv.getUint32(p+4,true); data=bytes.subarray(p+8,p+8+size); p+=8+Math.ceil(size/8)*8; if(type===15) p=p-Math.ceil(size/8)*8+size; }
+      if(type===15){ out.push(...await elements(await inflate(data))); }
+      else out.push({type,data});
+    }
+    return out;
+  }
+  function numArr(el){
+    const d=el.data, dv=new DataView(d.buffer,d.byteOffset,d.byteLength);
+    const sz={1:1,2:1,3:2,4:2,5:4,6:4,7:4,9:8,12:8,13:8}[el.type]; if(!sz) return new Float64Array(0);
+    const n=d.length/sz, r=new Float64Array(n);
+    for(let i=0;i<n;i++){const o=i*sz;r[i]=el.type===9?dv.getFloat64(o,true):el.type===7?dv.getFloat32(o,true):el.type===1?dv.getInt8(o):el.type===2?dv.getUint8(o):el.type===3?dv.getInt16(o,true):el.type===4?dv.getUint16(o,true):el.type===5?dv.getInt32(o,true):el.type===6?dv.getUint32(o,true):Number(el.type===12?dv.getBigInt64(o,true):dv.getBigUint64(o,true));}
+    return r;
+  }
+  async function matrix(bytes){
+    const sub=await elements(bytes);
+    const cls=new DataView(sub[0].data.buffer,sub[0].data.byteOffset,8).getUint32(0,true)&0xff;
+    const dims=Array.from(numArr(sub[1])); const name=new TextDecoder().decode(sub[2].data);
+    const count=dims.reduce((a,b)=>a*b,1);
+    if(cls===1){ const cells=[]; for(let i=0;i<count;i++) cells.push(await matrix(sub[3+i].data)); return {name,value:cells}; }
+    if(cls===2){
+      const fl=numArr(sub[3])[0], raw=sub[4].data, names=[];
+      for(let o=0;o<raw.length;o+=fl){ names.push(new TextDecoder().decode(raw.subarray(o,o+fl)).replace(/\0.*$/,"")); }
+      const structs=[]; let k=5;
+      for(let i=0;i<count;i++){ const s={}; for(const f of names){ s[f]=(await matrix(sub[k++].data)).value; } structs.push(s); }
+      return {name,value:structs.length===1?structs[0]:structs};
+    }
+    if(cls>=6 && cls<=15) return {name,value:numArr(sub[3])};
+    return {name,value:null};
+  }
+  for(const el of await elements(u8.subarray(128))){ if(el.type===14){ const m=await matrix(el.data); vars[m.name]=m.value; } }
+  function find(v){
+    if(!v) return null;
+    if(Array.isArray(v)){ for(const x of v){ const r=find(x); if(r) return r; } return null; }
+    if(typeof v==="object" && !(v instanceof Float64Array)){
+      if(v.ML instanceof Float64Array && v.AP instanceof Float64Array) return v;
+      for(const k in v){ const r=find(v[k]); if(r) return r; }
+    }
+    return null;
+  }
+  const s=find(vars.dataToExport)||find(vars)||(vars.ML&&vars.AP?vars:null);
+  if(!s) throw new Error("Não encontrei as variáveis ML e AP no .mat.");
+  return s;
+}
+async function loadSource(src){ // src: {url} ou File
+  if(src instanceof File){
+    if(/\.mat$/i.test(src.name)) return {mat:await parseMat(await src.arrayBuffer())};
+    return {table:parseTable(await src.text())};
+  }
+  if(location.protocol==="file:") throw new Error("Os dados de exemplo só carregam pelo link do site (GitHub Pages). Aberta direto do computador, a página funciona só com Carregar arquivo.");
+  const r=await fetch(src); if(!r.ok) throw new Error("Falha ao baixar "+src);
+  if(/\.mat$/i.test(src)) return {mat:await parseMat(await r.arrayBuffer())};
+  return {table:parseTable(await r.text())};
+}
+
+/* ---------------- Utilidades de interface ---------------- */
+const $=(s,r=document)=>r.querySelector(s);
+const el=(tag,attrs={},html="")=>{const e=document.createElement(tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(html)e.innerHTML=html;return e;};
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=(v,d=2)=>Number.isFinite(v)?v.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+const baseName=p=>p.split("/").pop();
+let uid=0;
+function fileButton(onFile,accept){
+  const id="f"+(++uid);
+  const l=el("label",{class:"btn",for:id},"Carregar arquivo");
+  const i=el("input",{type:"file",id,accept}); l.appendChild(i);
+  i.addEventListener("change",()=>{ if(i.files[0]) onFile(i.files[0]); i.value=""; });
+  return l;
+}
+function copyBtn(getText){
+  const b=el("button",{type:"button"},"Copiar tabela");
+  b.addEventListener("click",()=>{
+    const txt=getText();
+    const done=()=>{b.textContent="Copiado";setTimeout(()=>b.textContent="Copiar tabela",1500);};
+    const fallback=()=>{const ta=el("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){}ta.remove();};
+    try{ navigator.clipboard.writeText(txt).then(done,fallback); }catch(e){ fallback(); }
+  });
+  return b;
+}
+function sideHTML(exp){
+  const how=exp.howto||EMG_HOWTO;
+  return `<p class="eyebrow">${exp.kind==="emg"?"Eletromiografia · RMS":exp.kind==="imu"?"Sensores inerciais":exp.kind==="gait"?"Plataforma de força":"Posturografia"}</p>
+  <h2>${exp.title}</h2><p class="intro">${exp.intro}</p>
+  <ol class="howto">${how.map(h=>`<li>${h}</li>`).join("")}</ol>`;
+}
+
+/* uPlot */
+const plots=new Set();
+function makePlot(container,data,series,o={}){
+  const w=Math.max(200,container.clientWidth||600);
+  const axisStyle={stroke:tok("--muted"),grid:{stroke:tok("--line"),width:1},ticks:{stroke:tok("--line"),width:1,size:4},font:"11px "+tok("--f-mono")};
+  const opts={
+    width:w,height:o.height||150,
+    legend:{show:false},
+    padding:[8,8,0,0],
+    scales:{x:{time:false,...(o.xr?{range:()=>o.xr}:{})},y:o.yr?{range:()=>o.yr}:{auto:true}},
+    axes:[{...axisStyle,label:o.xlabel||"",labelSize:o.xlabel?18:0,labelFont:"11px "+tok("--f-mono")},{...axisStyle,size:54,values:(u,v)=>v.map(x=>Math.abs(x)>=1000?x.toLocaleString("pt-BR"):String(+x.toFixed(3)).replace(".",","))}],
+    series:[{},...series.map(s=>({stroke:s.color,width:s.width||1,points:s.points||{show:false},paths:s.paths,spanGaps:false}))],
+    cursor:{drag:{x:true,y:false,setScale:false},sync:o.sync?{key:o.sync}:undefined,points:{show:false}},
+    hooks:{setSelect:[u=>{ if(!o.onSelect) return; const L=u.select.left,W=u.select.width; if(W<3) return; o.onSelect(u.posToVal(L,"x"),u.posToVal(L+W,"x"),u); }]}
+  };
+  const u=new uPlot(opts,data,container);
+  plots.add(u);
+  const ro=new ResizeObserver(()=>{const cw=container.clientWidth; if(cw>0 && Math.abs(cw-u.width)>2) {u.setSize({width:cw,height:u.height}); if(u._win) paintSel(u,u._win);} });
+  ro.observe(container); u._ro=ro;
+  return u;
+}
+function killPlot(u){ if(!u) return; u._ro&&u._ro.disconnect(); plots.delete(u); u.destroy(); }
+function paintSel(u,win){
+  u._win=win;
+  if(!win){ u.setSelect({left:0,width:0,top:0,height:0},false); return; }
+  const a=u.valToPos(win[0],"x"), b=u.valToPos(win[1],"x");
+  u.setSelect({left:Math.min(a,b),width:Math.abs(b-a),top:0,height:u.over.clientHeight},false);
+}
+function windowControls(onApply){
+  const box=el("div",{class:"controls"});
+  const id1="w"+(++uid), id2="w"+(++uid);
+  box.innerHTML=`<label for="${id1}">Início (s) <input type="number" step="0.01" id="${id1}"></label><label for="${id2}">Fim (s) <input type="number" step="0.01" id="${id2}"></label>`;
+  const ap=el("button",{type:"button"},"Aplicar janela"), clr=el("button",{type:"button"},"Sinal inteiro");
+  box.append(ap,clr);
+  const i1=box.querySelector("#"+id1), i2=box.querySelector("#"+id2);
+  ap.addEventListener("click",()=>{const a=parseFloat(i1.value),b=parseFloat(i2.value); if(Number.isFinite(a)&&Number.isFinite(b)&&b>a) onApply([a,b]);});
+  clr.addEventListener("click",()=>onApply(null));
+  return {box,set(win){i1.value=win?win[0].toFixed(3):"";i2.value=win?win[1].toFixed(3):"";}};
+}
+
+/* ---------------- Experimentos de EMG ---------------- */
+function buildEMG(exp,root){
+  root.innerHTML="";
+  const sec=el("section",{class:"exp"}); const side=el("aside",{class:"side"},sideHTML(exp));
+  const res=el("div",{class:"results"}); side.appendChild(res);
+  const stack=el("div",{class:"stack"}); sec.append(side,stack); root.appendChild(sec);
+  const colors=["--t1","--t2","--t3"];
+  const conds=exp.conds.map(c=>({...c,cols:c.cols.slice(),data:null,fname:baseName(c.file),mine:false,win:null,plots:[],err:null}));
+
+  function renderResults(){
+    const head=`<tr><th>Condição</th>${exp.muscles.map(m=>`<th>${m}</th>`).join("")}</tr>`;
+    const body=conds.map(c=>{
+      const vals=exp.muscles.map((m,k)=>c.data?fmt(c.rms[k],1):"—");
+      return `<tr><td>${c.name}<br><span class="note">${c.win?`${fmt(c.win[0])}–${fmt(c.win[1])} s`:"sinal inteiro"}</span></td>${vals.map(v=>`<td class="num">${v}</td>`).join("")}</tr>`;
+    }).join("");
+    res.innerHTML=`<h3>RMS por condição</h3><div class="tbl"><table><thead>${head}</thead><tbody>${body}</tbody></table></div><p class="note">RMS na unidade do arquivo de EMG, sem filtragem, como no script MATLAB.</p>`;
+    const row=el("div"); row.appendChild(copyBtn(()=>["Condição\tJanela (s)\t"+exp.muscles.join("\t"),...conds.map(c=>`${c.name}\t${c.win?c.win.map(v=>v.toFixed(3)).join("–"):"inteiro"}\t${exp.muscles.map((m,k)=>c.data?c.rms[k].toFixed(3).replace(".",","):"").join("\t")}`)].join("\n"))); res.appendChild(row);
+  }
+  function compute(c){
+    const [i0,i1]=winIdx(c.data.t,c.win);
+    c.rms=c.cols.map(j=>rms(c.data.cols[j]||[],i0,i1));
+  }
+  function updateCond(c){
+    compute(c);
+    c.rmsEls.forEach((e,k)=>e.innerHTML=`RMS <b>${fmt(c.rms[k],1)}</b>`);
+    c.winEl.textContent=c.win?`Janela: ${fmt(c.win[0],3)} a ${fmt(c.win[1],3)} s (${fmt(c.win[1]-c.win[0],3)} s)`:"Janela: sinal inteiro";
+    c.wc.set(c.win);
+    renderResults();
+  }
+  function shared(){
+    let tmin=Infinity,tmax=-Infinity; const arrs=[];
+    conds.forEach(c=>{ if(!c.data) return; tmin=Math.min(tmin,c.data.t[0]); tmax=Math.max(tmax,c.data.t[c.data.t.length-1]); c.cols.forEach(j=>c.data.cols[j]&&arrs.push(c.data.cols[j])); });
+    const m=niceCeil(absMax(arrs)); return {yr:[-m,m],xr:Number.isFinite(tmin)?[tmin,tmax]:null};
+  }
+  const drawAll=()=>conds.forEach(c=>c.data?drawCond(c):null);
+  function drawCond(c){
+    c.plots.forEach(killPlot); c.plots=[];
+    const card=c.card; card.innerHTML="";
+    const head=el("div",{class:"cond-head"});
+    head.append(el("h3",{},c.name), el("span",{class:"file"+(c.mine?" mine":""),title:c.fname},c.mine?"seu arquivo: "+c.fname:"exemplo: "+c.fname), el("span",{class:"spacer"}));
+    head.appendChild(fileButton(async f=>{ await loadCond(c,f); },".txt,.csv,.dat"));
+    if(c.mine){ const b=el("button",{type:"button"},"Voltar ao exemplo"); b.addEventListener("click",()=>loadCond(c,c.file)); head.appendChild(b); }
+    card.appendChild(head);
+    if(c.err){ card.appendChild(el("p",{class:"err"},c.err)); }
+    if(!c.data){ card.appendChild(el("p",{class:"loading"},"Carregando…")); return; }
+    c.wc=windowControls(win=>{ c.win=win; c.plots.forEach(u=>paintSel(u,win)); updateCond(c); });
+    card.appendChild(c.wc.box);
+    c.winEl=el("div",{class:"winline"}); card.appendChild(c.winEl);
+    c.rmsEls=[];
+    const ncol=c.data.cols.length;
+    exp.muscles.forEach((m,k)=>{
+      const ch=el("div",{class:"chan"}); const hd=el("div",{class:"chan-head"});
+      const nm=el("span",{class:"chan-name"},`<span class="sw" style="background:var(${colors[k]})"></span>${m}`);
+      if(ncol>2){
+        const sid="s"+(++uid); const sel=el("select",{id:sid,"aria-label":"Coluna do arquivo para "+m});
+        for(let j=1;j<ncol;j++){ const op=el("option",{value:j},"coluna "+(j+1)); if(j===c.cols[k]) op.selected=true; sel.appendChild(op); }
+        sel.addEventListener("change",()=>{ c.cols[k]=+sel.value; drawAll(); });
+        nm.appendChild(sel);
+      }
+      const r=el("span",{class:"rms"}); c.rmsEls.push(r);
+      hd.append(nm,r); ch.appendChild(hd);
+      const pl=el("div",{class:"plot"}); ch.appendChild(pl); card.appendChild(ch);
+      const y=c.data.cols[c.cols[k]]; const S=shared();
+      const u=makePlot(pl,[c.data.t,y],[{color:tok(colors[k])}],{height:exp.muscles.length===1?190:150,sync:exp.id+c.name,yr:S.yr,xr:S.xr,xlabel:k===exp.muscles.length-1?"tempo (s)":"",
+        onSelect:(a,b,src)=>{ c.win=[a,b]; c.plots.forEach(o=>{ if(o!==src) paintSel(o,c.win); else o._win=c.win; }); updateCond(c); }});
+      c.plots.push(u);
+      if(c.win) paintSel(u,c.win);
+    });
+    updateCond(c);
+  }
+  async function loadCond(c,src){
+    try{
+      c.err=null;
+      const r=await loadSource(src);
+      if(!r.table) throw new Error("Use um arquivo de texto (.txt) com colunas de tempo e EMG.");
+      const cols=r.table.cols;
+      if(cols.length<2) throw new Error("O arquivo precisa ter pelo menos 2 colunas (tempo e sinal).");
+      c.data={t:cols[0],cols}; c.win=null;
+      c.mine=src instanceof File; c.fname=src instanceof File?src.name:baseName(src);
+      if(c.mine) c.cols=c.cols.map((j,k)=>Math.min(j,cols.length-1)); else c.cols=exp.conds[conds.indexOf(c)].cols.slice();
+    }catch(e){ c.err=e.message; }
+    if(c.data){ compute(c); drawAll(); } else drawCond(c);
+  }
+  conds.forEach(c=>{ c.card=el("article",{class:"cond"}); stack.appendChild(c.card); drawCond(c); loadCond(c,c.file); });
+  renderResults();
+  return {redraw(){ conds.forEach(c=>c.data&&drawCond(c)); }};
+}
+
+/* ---------------- Planos e eixos ---------------- */
+function buildIMU(exp,root){
+  root.innerHTML="";
+  const sec=el("section",{class:"exp"}); const side=el("aside",{class:"side"},sideHTML(exp));
+  const res=el("div",{class:"results"}); side.appendChild(res);
+  const stack=el("div",{class:"stack"}); sec.append(side,stack); root.appendChild(sec);
+  const panels=exp.panels.map(p=>({...p,fname:baseName(p.file),mine:false,data:null,win:null,u:null,err:null}));
+  function renderResults(){
+    const rows=panels.map(p=>`<tr><td>${p.name.replace(" · ","<br><span class=\"note\">")}</span> <span class="note">(${p.unit})</span></td>${exp.axes.map((a,k)=>`<td class="num">${p.data?fmt(p.rms[k],3):"—"}</td>`).join("")}</tr>`).join("");
+    res.innerHTML=`<h3>RMS por eixo</h3><div class="tbl"><table><thead><tr><th>Registro</th><th>Vert.</th><th>AP</th><th>ML</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">O maior RMS aponta o eixo com mais movimento em cada registro.</p>`;
+    const row=el("div"); row.appendChild(copyBtn(()=>["Registro\tUnidade\t"+exp.axes.map(a=>a.name).join("\t"),...panels.map(p=>`${p.name}\t${p.unit}\t${exp.axes.map((a,k)=>p.data?p.rms[k].toFixed(4).replace(".",","):"").join("\t")}`)].join("\n"))); res.appendChild(row);
+  }
+  function compute(p){ const [i0,i1]=winIdx(p.data.t,p.win); p.rms=p.data.f.map(x=>rms(x,i0,i1)); }
+  function shared(unit){
+    const same=panels.filter(q=>q.data&&q.unit===unit); let tmax=0; const arrs=[];
+    same.forEach(q=>{ tmax=Math.max(tmax,q.data.t[q.data.t.length-1]); arrs.push(...q.data.f); });
+    const m=niceCeil(absMax(arrs)); return {yr:[-m,m],xr:[0,tmax]};
+  }
+  function draw(p){
+    killPlot(p.u); p.u=null;
+    const card=p.card; card.innerHTML="";
+    const head=el("div",{class:"cond-head"});
+    head.append(el("h3",{},p.name), el("span",{class:"file"+(p.mine?" mine":""),title:p.fname},(p.mine?"seu arquivo: ":"exemplo: ")+p.fname), el("span",{class:"spacer"}), fileButton(f=>load(p,f),".csv,.txt"));
+    if(p.mine){ const b=el("button",{type:"button"},"Voltar ao exemplo"); b.addEventListener("click",()=>load(p,p.file)); head.appendChild(b); }
+    card.appendChild(head);
+    if(p.err) card.appendChild(el("p",{class:"err"},p.err));
+    if(!p.data){ card.appendChild(el("p",{class:"loading"},"Carregando…")); return; }
+    compute(p);
+    const wc=windowControls(win=>{p.win=win;paintSel(p.u,win);compute(p);upd();}); card.appendChild(wc.box);
+    const lg=el("div",{class:"legend"}); card.appendChild(lg);
+    const pl=el("div",{class:"plot"}); card.appendChild(pl);
+    const upd=()=>{ wc.set(p.win); lg.innerHTML=exp.axes.map((a,k)=>`<span><span class="sw" style="background:var(${a.c})"></span>${a.name} · <span class="rms">RMS <b>${fmt(p.rms[k],3)}</b> ${p.unit}</span></span>`).join("")+`<span class="winline">${p.win?`janela ${fmt(p.win[0],2)}–${fmt(p.win[1],2)} s`:"sinal inteiro"}</span>`; renderResults(); };
+    const S=shared(p.unit);
+    p.u=makePlot(pl,[p.data.t,...p.data.f],exp.axes.map(a=>({color:tok(a.c),width:1.6})),{height:200,xlabel:"tempo (s)",yr:S.yr,xr:S.xr,onSelect:(a,b)=>{p.win=[a,b];p.u._win=p.win;compute(p);upd();}});
+    if(p.win) paintSel(p.u,p.win);
+    upd();
+  }
+  async function load(p,src){
+    try{
+      p.err=null;
+      const r=await loadSource(src); if(!r.table) throw new Error("Use o .csv exportado pelo aplicativo.");
+      const c=r.table.cols; if(c.length<4) throw new Error("O arquivo precisa de 4 colunas: tempo, X, Y, Z.");
+      let t=c[0]; const dt=(t[t.length-1]-t[0])/(t.length-1); if(dt>1) t=t.map(v=>v/1000);
+      p.data={t,f:exp.axes.map(a=>filtfilt(FILT.bp10,detrend(c[a.col])))};
+      p.win=null; p.mine=src instanceof File; p.fname=p.mine?src.name:baseName(src);
+    }catch(e){ p.err=e.message; }
+    if(p.data){ compute(p); panels.forEach(q=>q.data?draw(q):null); } else draw(p);
+    renderResults();
+  }
+  panels.forEach(p=>{ p.card=el("article",{class:"cond"}); stack.appendChild(p.card); draw(p); load(p,p.file); });
+  renderResults();
+  return {redraw(){ panels.forEach(p=>p.data&&draw(p)); }};
+}
+
+/* ---------------- Marcha ---------------- */
+function buildGait(exp,root){
+  root.innerHTML="";
+  const sec=el("section",{class:"exp"}); const side=el("aside",{class:"side"},sideHTML(exp));
+  const prm=el("div",{class:"results"});
+  prm.innerHTML=`<h3>Parâmetros</h3><div class="controls" style="flex-direction:column;align-items:flex-start">
+   <label for="g-thr">Limiar de contato (N) <input type="number" id="g-thr" value="20" step="1" min="0"></label>
+   <label for="g-mass">Massa corporal (kg) <input type="number" id="g-mass" placeholder="opcional" step="0.1" min="0"></label></div>`;
+  const res=el("div",{class:"results"}); side.append(prm,res);
+  const stack=el("div",{class:"stack"}); sec.append(side,stack); root.appendChild(sec);
+  const P=()=>({thr:parseFloat($("#g-thr",prm).value)||0,mass:parseFloat($("#g-mass",prm).value)});
+  const conds=exp.conds.map(c=>({...c,fname:baseName(c.file),mine:false,data:null,win:null,u:null,err:null,full:false}));
+  function analyse(c){
+    const {t,fz}=c.data, p=P();
+    let a=-1,b=-1; for(let i=0;i<fz.length;i++){ if(fz[i]>p.thr){ if(a<0)a=i; b=i; } }
+    c.contact=a>=0?[t[a],t[b]]:null;
+    let mx=-Infinity,imx=0; for(let i=0;i<fz.length;i++) if(fz[i]>mx){mx=fz[i];imx=i;}
+    c.peak=mx; c.tpeak=t[imx];
+    c.peaks=findPeaks(t,fz,Math.max(p.thr,0.2*mx),c.dist);
+    c.bw=Number.isFinite(p.mass)&&p.mass>0?p.mass*9.81:null;
+  }
+  function renderResults(){
+    const bw=P().mass>0;
+    const rows=conds.map(c=>c.data?`<tr><td>${c.name}</td><td class="num">${c.contact?fmt(c.contact[1]-c.contact[0],2):"—"}</td><td class="num">${fmt(c.peak,0)}</td>${bw?`<td class="num">${fmt(c.peak/c.bw,2)}</td>`:""}<td class="num">${c.win?fmt(c.win[1]-c.win[0],3):"—"}</td></tr>`:`<tr><td>${c.name}</td><td colspan="4">—</td></tr>`).join("");
+    res.innerHTML=`<h3>Resultados</h3><div class="tbl"><table><thead><tr><th></th><th>Apoio (s)</th><th>Pico Fz (N)</th>${bw?"<th>Pico (PC)</th>":""}<th>Marcado (s)</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">Apoio: tempo com Fz acima do limiar. PC: múltiplos do peso corporal. Marcado: duração do trecho que você arrastou no gráfico.</p>`;
+    const row=el("div"); row.appendChild(copyBtn(()=>["Condição\tApoio (s)\tPico Fz (N)\tPico (PC)\tMarcado (s)",...conds.filter(c=>c.data).map(c=>[c.name,c.contact?(c.contact[1]-c.contact[0]).toFixed(3):"",c.peak.toFixed(1),c.bw?(c.peak/c.bw).toFixed(2):"",c.win?(c.win[1]-c.win[0]).toFixed(3):""].join("\t").replace(/\./g,","))].join("\n"))); res.appendChild(row);
+  }
+  function draw(c){
+    killPlot(c.u); c.u=null;
+    const card=c.card; card.innerHTML="";
+    const head=el("div",{class:"cond-head"});
+    head.append(el("h3",{},c.name), el("span",{class:"file"+(c.mine?" mine":""),title:c.fname},(c.mine?"seu arquivo: ":"exemplo: ")+c.fname), el("span",{class:"spacer"}), fileButton(f=>load(c,f),".txt,.csv"));
+    if(c.mine){ const b=el("button",{type:"button"},"Voltar ao exemplo"); b.addEventListener("click",()=>load(c,c.file)); head.appendChild(b); }
+    card.appendChild(head);
+    if(c.err) card.appendChild(el("p",{class:"err"},c.err));
+    if(!c.data){ card.appendChild(el("p",{class:"loading"},"Carregando…")); return; }
+    analyse(c);
+    const ctr=el("div",{class:"controls"});
+    const zb=el("button",{type:"button"},c.full?"Aproximar no apoio":"Ver registro inteiro");
+    zb.addEventListener("click",()=>{const f=!c.full; conds.forEach(q=>{q.full=f; if(q.data) draw(q);});});
+    const cb=el("button",{type:"button"},"Limpar marcação"); cb.addEventListener("click",()=>{c.win=null;paintSel(c.u,null);info();renderResults();});
+    const did="d"+(++uid); const dl=el("label",{for:did},`Distância mín. entre picos (s) <input type="number" id="${did}" value="${c.dist}" step="0.01" min="0">`);
+    dl.querySelector("input").addEventListener("change",e=>{c.dist=parseFloat(e.target.value)||0;draw(c);});
+    ctr.append(zb,cb,dl); card.appendChild(ctr);
+    const lg=el("div",{class:"legend"}); card.appendChild(lg);
+    const pl=el("div",{class:"plot"}); card.appendChild(pl);
+    const pk=new Array(c.data.t.length).fill(null); c.peaks.forEach(i=>pk[i]=c.data.fz[i]);
+    conds.forEach(q=>q.data&&q!==c&&analyse(q));
+    const withData=conds.filter(q=>q.data);
+    const ymax=niceCeil(Math.max(...withData.map(q=>q.peak))), ymin=Math.min(0,...withData.map(q=>{let m=Infinity;for(const v of q.data.fz)m=Math.min(m,v);return m;}));
+    const W=Math.max(...withData.map(q=>q.contact?q.contact[1]-q.contact[0]:0))+0.6;
+    const xr=(!c.full&&c.contact)?[c.contact[0]-0.3,c.contact[0]-0.3+W]:[0,Math.max(...withData.map(q=>q.data.t[q.data.t.length-1]))];
+    c.u=makePlot(pl,[c.data.t,c.data.fz,pk],[{color:tok("--t1"),width:1.8},{color:tok("--t2"),paths:()=>null,points:{show:true,size:8,fill:tok("--t2"),stroke:tok("--t2")}}],{height:240,xlabel:"tempo (s)",xr,yr:[Math.floor(ymin/50)*50,ymax],
+      onSelect:(a,b)=>{c.win=[a,b];c.u._win=c.win;info();renderResults();}});
+    if(c.win) paintSel(c.u,c.win);
+    const info=()=>{ lg.innerHTML=`<span><span class="sw" style="background:var(--t1)"></span>Fz (N)</span><span><span class="sw" style="background:var(--t2);height:8px;width:8px;border-radius:50%"></span>picos: ${c.peaks.map(i=>`${fmt(c.data.fz[i],0)} N em ${fmt(c.data.t[i],2)} s`).join(" · ")||"nenhum"}</span><span class="winline">${c.win?`marcado: ${fmt(c.win[0],3)}–${fmt(c.win[1],3)} s = <b>${fmt(c.win[1]-c.win[0],3)} s</b>`:"arraste para medir uma duração"}</span>`; };
+    info();
+  }
+  async function load(c,src){
+    try{
+      c.err=null;
+      const r=await loadSource(src); if(!r.table) throw new Error("Use um arquivo de texto com tempo e Fz.");
+      const cols=r.table.cols; if(cols.length<2) throw new Error("O arquivo precisa das colunas tempo e Fz.");
+      c.data={t:cols[0],fz:Float64Array.from(cols[1],v=>Number.isFinite(v)?v:0)};
+      c.win=null; c.mine=src instanceof File; c.fname=c.mine?src.name:baseName(src);
+    }catch(e){ c.err=e.message; }
+    if(c.data) conds.forEach(q=>q.data?draw(q):null); else draw(c);
+    renderResults();
+  }
+  prm.addEventListener("change",()=>{ conds.forEach(c=>c.data&&draw(c)); renderResults(); });
+  conds.forEach(c=>{ c.card=el("article",{class:"cond"}); stack.appendChild(c.card); draw(c); load(c,c.file); });
+  renderResults();
+  return {redraw(){ conds.forEach(c=>c.data&&draw(c)); }};
+}
+
+/* ---------------- Equilíbrio ---------------- */
+function buildBalance(exp,root){
+  root.innerHTML="";
+  const sec=el("section",{class:"exp"}); const side=el("aside",{class:"side"},sideHTML(exp));
+  const res=el("div",{class:"results"}); side.appendChild(res);
+  const stack=el("div",{class:"stack"}); sec.append(side,stack); root.appendChild(sec);
+  const conds=exp.conds.map(c=>({...c,fname:baseName(c.file),mine:false,data:null,err:null}));
+  let view="skg"; const ups=[];
+  const fcard=el("article",{class:"cond"}); const vcard=el("article",{class:"cond"}); stack.append(fcard,vcard);
+  function renderFiles(){
+    fcard.innerHTML=`<div class="cond-head"><h3>Arquivos</h3></div>`;
+    const g=el("div",{class:"files3"});
+    conds.forEach(c=>{
+      const cell=el("div",{class:"cell"}); cell.appendChild(el("strong",{},`${c.name} · ${c.long}`));
+      cell.appendChild(el("span",{class:"file"+(c.mine?" mine":""),title:c.fname},(c.mine?"seu arquivo: ":"exemplo: ")+c.fname));
+      const r=el("div",{class:"controls"}); r.appendChild(fileButton(f=>load(c,f),".mat,.csv,.txt"));
+      if(c.mine){ const b=el("button",{type:"button"},"Voltar ao exemplo"); b.addEventListener("click",()=>load(c,c.file)); r.appendChild(b); }
+      cell.appendChild(r); if(c.err) cell.appendChild(el("p",{class:"err"},c.err));
+      g.appendChild(cell);
+    });
+    fcard.appendChild(g);
+  }
+  function renderResults(){
+    const vars=[["Deslocamento total","tot",1],["Área da elipse 95%","area",3],["RMS ML","rmsx",3],["RMS AP","rmsy",3]];
+    res.innerHTML=`<h3>Resultados</h3><div class="tbl"><table><thead><tr><th></th>${conds.map(c=>`<th>${c.name}</th>`).join("")}</tr></thead><tbody>${vars.map(v=>`<tr><td>${v[0]}</td>${conds.map(c=>`<td class="num">${c.data?fmt(c.r[v[1]],v[2]):"—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="note">Sinais em m/s². Deslocamento total = soma das distâncias ao centro (Σ√(ML²+AP²)), como no script original. Área em (m/s²)².</p>`;
+    const row=el("div"); row.appendChild(copyBtn(()=>["Variável\t"+conds.map(c=>c.name).join("\t"),...vars.map(v=>v[0]+"\t"+conds.map(c=>c.data?c.r[v[1]].toFixed(4).replace(".",","):"").join("\t"))].join("\n"))); res.appendChild(row);
+  }
+  const Q=()=>Math.max(2,Math.ceil(absMax(conds.filter(c=>c.data).flatMap(c=>[c.data.ml,c.data.ap]))));
+  function drawSKG(canvas,c){
+    const dpr=window.devicePixelRatio||1, W=canvas.clientWidth||260; canvas.width=W*dpr; canvas.height=W*dpr;
+    const g=canvas.getContext("2d"); g.scale(dpr,dpr);
+    const q=Q(), step=q<=4?1:2, pad=30, S=(W-pad-8)/(2*q), X=v=>pad+(v+q)*S, Y=v=>8+(q-v)*S;
+    g.font="10px "+tok("--f-mono"); g.fillStyle=tok("--muted"); g.strokeStyle=tok("--line"); g.lineWidth=1;
+    for(let v=-q;v<=q;v+=step){ g.beginPath(); g.moveTo(X(v),Y(-q)); g.lineTo(X(v),Y(q)); g.moveTo(X(-q),Y(v)); g.lineTo(X(q),Y(v)); g.stroke();
+      g.textAlign="center"; g.fillText(v,X(v),Y(-q)+12); g.textAlign="right"; g.fillText(v,pad-4,Y(v)+3); }
+    g.save(); g.beginPath(); g.rect(X(-q),Y(q),2*q*S,2*q*S); g.clip();
+    g.strokeStyle=tok("--ink"); g.globalAlpha=.75; g.lineWidth=1; g.beginPath();
+    const {ml,ap}=c.data; for(let i=0;i<ml.length;i++){ i?g.lineTo(X(ml[i]),Y(ap[i])):g.moveTo(X(ml[i]),Y(ap[i])); } g.stroke();
+    g.globalAlpha=1; const e=c.r.ell; g.strokeStyle=tok("--accent"); g.lineWidth=2; g.beginPath();
+    for(let k=0;k<=72;k++){ const th=k/72*2*Math.PI, ex=e.A*Math.cos(th), ey=e.B*Math.sin(th);
+      const px=e.cx+ex*Math.cos(e.ang)-ey*Math.sin(e.ang), py=e.cy+ex*Math.sin(e.ang)+ey*Math.cos(e.ang); k?g.lineTo(X(px),Y(py)):g.moveTo(X(px),Y(py)); }
+    g.stroke(); g.restore();
+  }
+  function renderView(){
+    ups.splice(0).forEach(killPlot);
+    vcard.innerHTML="";
+    const head=el("div",{class:"cond-head"}); head.appendChild(el("h3",{},view==="skg"?"Estatocinesigrama":"Estabilograma"));
+    head.appendChild(el("span",{class:"spacer"}));
+    const seg=el("div",{class:"seg",role:"group","aria-label":"Visualização"});
+    [["skg","Estatocinesigrama"],["stb","Estabilograma"]].forEach(([k,l])=>{const b=el("button",{type:"button","aria-pressed":String(view===k)},l);b.addEventListener("click",()=>{view=k;renderView();});seg.appendChild(b);});
+    head.appendChild(seg); vcard.appendChild(head);
+    if(view==="skg"){
+      vcard.appendChild(el("p",{class:"note"},"Eixo horizontal: ML (m/s²) · eixo vertical: AP (m/s²) · em vermelho, elipse de 95%."));
+      const grid=el("div",{class:"skg"}); vcard.appendChild(grid);
+      conds.forEach(c=>{ const f=el("figure"); f.appendChild(el("figcaption",{},`${c.name} · ${c.long}`));
+        if(c.data){ const cv=el("canvas",{role:"img","aria-label":"Estatocinesigrama "+c.long}); f.appendChild(cv); grid.appendChild(f); drawSKG(cv,c); }
+        else { f.appendChild(el("p",{class:"missing"},c.err||"Carregando…")); grid.appendChild(f); } });
+    }else{
+      vcard.appendChild(el("div",{class:"legend"},`<span><span class="sw" style="background:var(--t1)"></span>AP</span><span><span class="sw" style="background:var(--t2)"></span>ML</span>`));
+      conds.forEach(c=>{ const w=el("div",{class:"chan"}); w.appendChild(el("div",{class:"chan-name"},`${c.name} · ${c.long}`)); const pl=el("div",{class:"plot"}); w.appendChild(pl); vcard.appendChild(w);
+        if(c.data) ups.push(makePlot(pl,[c.data.t,c.data.ap,c.data.ml],[{color:tok("--t1")},{color:tok("--t2")}],{height:150,yr:[-Q(),Q()],xr:[0,Math.max(...conds.filter(q=>q.data).map(q=>q.data.t[q.data.t.length-1]))],xlabel:"tempo (s)"}));
+        else pl.appendChild(el("p",{class:"missing"},c.err||"Carregando…")); });
+    }
+  }
+  async function load(c,src){
+    try{
+      c.err=null;
+      const r=await loadSource(src); let t,ml,ap;
+      if(r.mat){ t=r.mat.Tempo||r.mat.tempo; ml=r.mat.ML; ap=r.mat.AP; if(!t) t=Float64Array.from(ml,(v,i)=>i/100); }
+      else{ const cols=r.table.cols, h=(r.table.header||[]).join(" ").toUpperCase();
+        if(cols.length<3) throw new Error("O arquivo precisa das colunas tempo, ML e AP.");
+        t=cols[0];
+        if(/ACC/.test(h)&&cols.length>=4){ ml=cols[1]; ap=cols[3]; } else { ml=cols[1]; ap=cols[2]; } }
+      const dt=(t[t.length-1]-t[0])/(t.length-1); t=Float64Array.from(t,v=>(dt>1?v/1000:v)); const t0=t[0]; t=t.map(v=>v-t0);
+      const prep=x=>{ let y=detrend(x); const m=mean(y); y=y.map(v=>v-m); return filtfilt(FILT.bp4,y); };
+      ml=prep(ml); ap=prep(ap);
+      const ell=ellipse95(ml,ap); let tot=0; for(let i=0;i<ml.length;i++) tot+=Math.hypot(ml[i],ap[i]);
+      c.data={t,ml,ap}; c.r={tot,area:ell.area,rmsx:rms(ml),rmsy:rms(ap),ell};
+      c.mine=src instanceof File; c.fname=c.mine?src.name:baseName(src);
+    }catch(e){ c.err=e.message; c.data=null; }
+    renderFiles(); renderResults(); renderView();
+  }
+  renderFiles(); renderResults(); renderView();
+  conds.forEach(c=>load(c,c.file));
+  let rt; const ro=new ResizeObserver(()=>{clearTimeout(rt);rt=setTimeout(()=>{ if(view==="skg") vcard.querySelectorAll("canvas").forEach((cv,i)=>{const c=conds.filter(x=>x.data)[i]; c&&drawSKG(cv,c);}); },120);}); ro.observe(vcard);
+  return {redraw(){ renderView(); }};
+}
+
+/* ---------------- Abas ---------------- */
+const BUILDERS={emg:buildEMG,imu:buildIMU,gait:buildGait,balance:buildBalance};
+const tabsEl=$("#tabs"), mainEl=$("#main"), built={};
+EXPS.forEach(x=>{
+  const a=el("a",{href:"#"+x.id,role:"tab",id:"tab-"+x.id,"aria-controls":"pane-"+x.id},x.tab); tabsEl.appendChild(a);
+  const pane=el("div",{id:"pane-"+x.id,role:"tabpanel","aria-labelledby":"tab-"+x.id}); pane.hidden=true; mainEl.appendChild(pane);
+});
+function show(){
+  if(typeof uPlot==="undefined"){ mainEl.innerHTML='<p class="err">Não foi possível carregar a biblioteca de gráficos. Verifique a conexão e recarregue a página.</p>'; return; }
+  const id=(location.hash||"").slice(1); const x=EXPS.find(e=>e.id===id)||EXPS[0];
+  EXPS.forEach(e=>{ const on=e===x; $("#tab-"+e.id).setAttribute("aria-selected",String(on)); $("#pane-"+e.id).hidden=!on; });
+  if(!built[x.id]) built[x.id]=BUILDERS[x.kind](x,$("#pane-"+x.id));
+  else if(built[x.id].stale){ built[x.id].stale=false; built[x.id].redraw(); }
+  $("#tab-"+x.id).scrollIntoView({block:"nearest",inline:"nearest"});
+}
+window.addEventListener("hashchange",show);
+function onTheme(){ const cur=(location.hash||"#"+EXPS[0].id).slice(1); for(const k in built){ if(k===cur) built[k].redraw(); else built[k].stale=true; } }
+try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",onTheme); }catch(e){}
+new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+show();
+</script>
+</body>
+</html>
