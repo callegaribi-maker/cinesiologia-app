@@ -189,6 +189,8 @@ def load(upload, example):
     if upload is not None:
         return read_bytes(upload.name, upload.getvalue()), upload.name, True
     p = DATA / example
+    if not p.is_file():
+        raise FileNotFoundError(f"Arquivo de exemplo data/{example} não encontrado no repositório. Suba a pasta data/ ou carregue seu arquivo.")
     return read_bytes(p.name, p.read_bytes()), p.name, False
 
 
@@ -517,9 +519,13 @@ div[data-testid="stCaptionContainer"] p{letter-spacing:.02em}
 button[data-baseweb="tab"] p{font-size:1rem;font-weight:600}
 </style>""", unsafe_allow_html=True)
 hc1, hc2, hc3 = st.columns([1.1, 0.45, 6], vertical_alignment="center")
-hc1.image(str(IMG / "lemoh.png"), width="stretch")
-hc2.image(str(IMG / "ufpa.png"), width="stretch")
+for col, logo in ((hc1, "lemoh.png"), (hc2, "ufpa.png")):
+    if (IMG / logo).is_file():  # logos são opcionais: o app abre mesmo sem a pasta img/
+        col.image((IMG / logo).read_bytes(), width="stretch")
 hc3.markdown("# Experimentos de Cinesiologia\nLaboratório de Estudos da Motricidade Humana · Universidade Federal do Pará")
+if not DATA.is_dir():
+    st.warning("A pasta `data/` com os dados de exemplo não foi encontrada no repositório. "
+               "Suba a pasta `data/` junto do `app.py` (ou carregue seus próprios arquivos em cada aba).")
 
 tabs = st.tabs(TABS)
 with tabs[0]:
