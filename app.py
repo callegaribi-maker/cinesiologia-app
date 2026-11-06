@@ -18,6 +18,17 @@ from scipy.signal import butter, detrend, filtfilt, find_peaks
 BASE = Path(__file__).parent
 DATA = BASE / "data"
 IMG = BASE / "img"
+
+
+def find_file(name):
+    """Procura o arquivo em data/, img/, na raiz do repositório ou em qualquer subpasta."""
+    for d in (DATA, IMG, BASE):
+        if (d / name).is_file():
+            return d / name
+    for p in BASE.rglob(name):
+        if p.is_file() and ".git" not in p.parts:
+            return p
+    return None
 C = ["#1F5FA8", "#C93A25", "#17806A"]  # azul, vermelho, verde
 SEL = "rgba(201,58,37,0.14)"
 
@@ -188,9 +199,9 @@ def load(upload, example):
     """Retorna (dados, nome, é_do_usuário)."""
     if upload is not None:
         return read_bytes(upload.name, upload.getvalue()), upload.name, True
-    p = DATA / example
-    if not p.is_file():
-        raise FileNotFoundError(f"Arquivo de exemplo data/{example} não encontrado no repositório. Suba a pasta data/ ou carregue seu arquivo.")
+    p = find_file(example)
+    if p is None:
+        raise FileNotFoundError(f"O exemplo {example} não está no repositório. Suba esse arquivo (na raiz ou na pasta data/) ou carregue o seu.")
     return read_bytes(p.name, p.read_bytes()), p.name, False
 
 
@@ -520,12 +531,12 @@ button[data-baseweb="tab"] p{font-size:1rem;font-weight:600}
 </style>""", unsafe_allow_html=True)
 hc1, hc2, hc3 = st.columns([1.1, 0.45, 6], vertical_alignment="center")
 for col, logo in ((hc1, "lemoh.png"), (hc2, "ufpa.png")):
-    if (IMG / logo).is_file():  # logos são opcionais: o app abre mesmo sem a pasta img/
-        col.image((IMG / logo).read_bytes(), width="stretch")
+    lp = find_file(logo)  # logos são opcionais: o app abre mesmo sem eles
+    if lp:
+        col.image(lp.read_bytes(), width="stretch")
 hc3.markdown("# Experimentos de Cinesiologia\nLaboratório de Estudos da Motricidade Humana · Universidade Federal do Pará")
-if not DATA.is_dir():
-    st.warning("A pasta `data/` com os dados de exemplo não foi encontrada no repositório. "
-               "Suba a pasta `data/` junto do `app.py` (ou carregue seus próprios arquivos em cada aba).")
+st.caption("Cada aba abre com os dados de exemplo do repositório. Para analisar uma coleta nova, use o botão **Upload** da condição; "
+           "para voltar ao exemplo, remova o arquivo enviado (×).")
 
 tabs = st.tabs(TABS)
 with tabs[0]:
