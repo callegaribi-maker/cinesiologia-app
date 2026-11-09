@@ -62,15 +62,18 @@ EMG = {
         intro="Eletromiografia do tibial anterior (TA) e do gastrocnêmio (GAS) no apoio unipodal no chão e sobre a prancha de equilíbrio.",
         muscles=["Tibial anterior (TA)", "Gastrocnêmio (GAS)"],
         conds=[("Unipodal no chão", "tornozelo_chao.txt", [1, 2]), ("Unipodal na prancha", "tornozelo_prancha.txt", [2, 1])]),
-    "Cervical": dict(
-        title="RMS da cervical",
+    "Coluna cervical": dict(
+        title="RMS da coluna cervical",
         intro="Eletromiografia do esternocleidomastoideo esquerdo e direito (ECM E e ECM D) na flexão, na inclinação para a direita e na rotação para a esquerda.",
         muscles=["ECM esquerdo", "ECM direito"],
         conds=[("Flexão cervical", "cervical_flexao.txt", [1, 2]),
                ("Inclinação lado direito", "cervical_inclinacao_dir.txt", [1, 2]),
                ("Rotação lado esquerdo", "cervical_rotacao_esq.txt", [1, 2])]),
 }
-TABS = ["Planos e eixos", "Ombro", "Cotovelo", "Punho e mão", "Joelho", "Tornozelo", "Cervical", "Marcha", "Equilíbrio"]
+# Ordem e numeração das abas (o experimento de equilíbrio foi retirado)
+ORDER = [("Planos e eixos", "imu"), ("Ombro", "emg"), ("Cotovelo", "emg"), ("Punho e mão", "emg"),
+         ("Coluna cervical", "emg"), ("Joelho", "emg"), ("Tornozelo", "emg"), ("Marcha", "gait")]
+TABS = [f"{i}. {name}" for i, (name, _) in enumerate(ORDER, 1)]
 
 # --------------------------------------------------------------------------- processamento
 def nice_ceil(v):
@@ -547,12 +550,11 @@ st.caption("Cada aba abre com os dados de exemplo do repositório. Para analisar
            "para voltar ao exemplo, remova o arquivo enviado (×).")
 
 tabs = st.tabs(TABS)
-with tabs[0]:
-    imu_tab()
-for i, name in enumerate(TABS[1:7], 1):
-    with tabs[i]:
-        emg_tab(name)
-with tabs[7]:
-    gait_tab()
-with tabs[8]:
-    balance_tab()
+for tab, (name, kind) in zip(tabs, ORDER):
+    with tab:
+        if kind == "imu":
+            imu_tab()
+        elif kind == "emg":
+            emg_tab(name)
+        else:
+            gait_tab()
